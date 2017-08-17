@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<?rfc compact="yes"?>
+<?rfc toc="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+
+<!-- Expand crefs and put them inline -->
+<?rfc comments='yes' ?>
+<?rfc inline='yes' ?>
+
+<rfc category="std"
+     docName="draft-hinden-6man-ipv6-edge-subnet-00.txt"
+     ipr="trust200902">
+
+<front>
+    <title abbrev="IPv6 Edge Subnets">
+      Self Assigned IPv6 Edge Subnets
+    </title>
+
+   <author fullname="Robert M. Hinden" initials="R." surname="Hinden">
+     <organization>Check Point Software</organization>
+      <address>
+        <postal>
+          <street>959 Skyway Road</street>
+          <city>San Carlos</city>
+          <code>94070</code>
+          <region>CA</region>
+          <country>USA</country>
+        </postal>
+        <email>bob.hinden@gmail.com</email>
+      </address>
+    </author>
+
+   <author fullname="Christian Huitema" initials="C." surname="Huitema">
+      <organization>Private Octopus Inc.</organization>
+      <address>
+        <postal>
+          <street> </street>
+          <city>Friday Harbor</city>
+          <code>98250</code>
+          <region>WA</region>
+          <country>U.S.A.</country>
+        </postal>
+        <email>huitema@huitema.net</email>
+      </address>
+    </author>
+    <date year="2017" />
+
+    <abstract>
+        <t>
+This document present a simple strategy for setting up special purpose subnets
+in edge networks without requiring
+additional prefix assignments from the network service provider, and also without
+breaking the current practice of assigning a single /64 prefix to an edge 
+network.
+        </t>
+<t>
+TODO: explain what we actually propose.
+</t>
+    </abstract>
+</front>
+
+<middle>
+<section title="Introduction" anchor="intro" >
+<t>
+The current IPv6 address assignment strategy works very well for edge networks, 
+as long as these networks include a single subnet. But as soon as a network
+requires more than one subnet, we observe a tension between two possible solutions.
+</t>
+<t>
+The standard practice in home networks is to use the prefix delegation mechanism
+and obtain a network prefix from the network service provider.
+An obvious solution for multiple subnets is to use the same prefix delegation
+mechanism to obtain additional prefixes, and assign them to the additional
+networks. While this solution is technically sound, it requires cooperation
+from the network service provider. There are fears that the network service
+provider might charge an additional fee for these additional network prefixes.
+These fears may or may not be grounded in facts, but in any case the
+network provider will need to expand more resource to manage several 
+prefixes than to manage a single one.
+</t>
+<t>
+Another plausible solution is to allow edge devices to derive from the prefix
+allocated by the network service provider a set of longer prefixes, which could
+then be assigned to different subnets. That solution may very well work, but
+it would requires all hosts to support address configuration with
+variable length subnet prefixes. A number of currently fielded devices do
+not have that capability. Their IPv6 stack assumes that the subnet prefix
+is 64 bit long. A large fraction of these hosts will not be updated in the
+near future. If we ignore this issue and assume that all host will be updated
+to handle variable length subnets, there is a fear that some network
+providers will handle by default very long subnet prefixes, forcing
+complex edge networks to pay extra for shorter prefixes that could be subnetted.
+</t>
+<t>
+Yet another solution would be to use a form of local addressing combined
+with IPv6 to IPv6 NAT. Each subnet in the home would get a /64 prefix
+using Unique Local Address (ULA), and some stateful NAT would do the translation
+to the IPS assigned prefix. This solution is despised by many IPv6
+experts, because it would import to IPv6 the various problems caused
+by NAT in IPv4. However, in the absence of alternative, this solution
+relieves the price pressure linked to the acquisition of long prefixes
+or multiple prefixes.
+</t>
+<t>
+In this document, we propose an alternative to multiple prefixes or 
+generalized support of variable length subnets. We assume that the current
+practice of assigning a /64 prefix to a "customer" network will continue,
+and we assume that most hosts will continue directly connecting 
+to this /64 subnet. Special purpose networks, on the other hand, will
+"self assign" a subnet of that /64 prefix. We do not expect that these
+networks will use SLAAC.
+</t>
+ 
+
+<section title="Terminology" anchor="terminology">
+  
+
+<t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
+   NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   RFC 2119 <xref target="RFC2119"/>.</t>
+</section>
+
+</section> <!-- end of introduction -->
+
+
+<section title="Problem Statement and Requirements" anchor="problem" >
+<t>
+Today, most home networks use a simple architecture consistent with
+the IEEE 802 series of standards. Multiple segments may use different
+transport mechanisms such as 802.3 or 802.11, but these segments
+can be bridged according to 802.1. In this architecture, the entire
+edge network appears to IPv6 hosts as a single subnet. Most IPv6 
+devices just work.
+</t>
+<t>
+There are scaling issues with this bridged network architecture,
+mostly caused by the N-square effects of multicast based transmission.
+However, we expect that these scaling issues will be solved by 
+adequate support of IPv6 in the bridges. There are known examples
+of such networks scaling up to several ten thousands hosts, which
+is somewhat larger than the expected size of most home networks.
+</t>
+<t>
+There are however other issues than scaling that may require
+subnetting. One potential issue is the need to isolate a fraction
+of the network for security reasons. Another plausible issue
+is the deployment of special purpose subnets, such as CLAT.
+</t>
+<section title="Segment isolation">
+<t>
+TODO.
+</t>
+</section>
+<section title="CLAT">
+<t>
+TODO.
+</t>
+</section>
+</section> <!-- end of problem statement -->
+
+<section title="Self assigned subnet" >
+<t>
+TODO: general idea, a box assigns itself a subnet.
+</t>
+<t>
+TODO: maybe a beautiful diagram with a /64 and two /96
+</t>
+<section title="Defending a subnet claim with DAD">
+<t>
+TO DO: how to use DAD to claim a /80 or a /96.
+</t>
+<t>
+TO DO: probabilies of SLAAC collision with a self assigned subnet. 
+Show that this is typically not very large.
+</t>
+</section> <!-- end of DAD -->
+
+<section title="Routing considerations" >
+<t>
+TODO: general solution using ND proxy.
+</t>
+<t>
+TODO: what about multicast.
+</t>
+<t>
+TODO: special case of same box colocation. The home router also manages the special purpose network.
+Example are dedicated Wi-Fi network with special password, or CLAT managed by edge router.
+</t>
+
+</section> <!-- end of routing -->
+
+</section> <!-- end of Self assigned subnet -->
+
+<section title="CLAT using self assigned subnet">
+<t>
+TODO, if we really care. Or maybe this is a different draft.
+</t>
+</section> <!-- end of clat using -->
+
+
+<section title="Security Considerations" anchor="securityCons" >
+<t>
+Yeah, right.
+</t>
+
+</section> <!-- end of security -->
+
+
+<section title="IANA Considerations" anchor="iana">
+<t>
+This draft does not require any IANA action.
+</t>
+</section> <!-- end of iana -->
+
+<section title="Acknowledgments">
+<t>
+We would like to thank the 6MAN working member for the long and constructive discussion that motivated this draft.
+</t>
+</section>
+</middle>
+
+<back>
+
+<references title="Normative References">
+
+	<?rfc include="reference.RFC.2119" ?>
+
+</references>
+</back>
+</rfc>

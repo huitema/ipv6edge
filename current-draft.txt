@@ -1,0 +1,280 @@
+
+
+
+
+Network Working Group                                          R. Hinden
+Internet-Draft                                      Check Point Software
+Intended status: Standards Track                              C. Huitema
+Expires: February 17, 2018                          Private Octopus Inc.
+                                                         August 16, 2017
+
+
+                    Self Assigned IPv6 Edge Subnets
+               draft-hinden-6man-ipv6-edge-subnet-00.txt
+
+Abstract
+
+   This document present a simple strategy for setting up special
+   purpose subnets in edge networks without requiring additional prefix
+   assignments from the network service provider, and also without
+   breaking the current practice of assigning a single /64 prefix to an
+   edge network.
+
+   TODO: explain what we actually propose.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at http://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on February 17, 2018.
+
+Copyright Notice
+
+   Copyright (c) 2017 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+
+
+
+Hinden & Huitema        Expires February 17, 2018               [Page 1]
+
+Internet-Draft              IPv6 Edge Subnets                August 2017
+
+
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Problem Statement and Requirements  . . . . . . . . . . . . .   3
+     2.1.  Segment isolation . . . . . . . . . . . . . . . . . . . .   4
+     2.2.  CLAT  . . . . . . . . . . . . . . . . . . . . . . . . . .   4
+   3.  Self assigned subnet  . . . . . . . . . . . . . . . . . . . .   4
+     3.1.  Defending a subnet claim with DAD . . . . . . . . . . . .   4
+     3.2.  Routing considerations  . . . . . . . . . . . . . . . . .   4
+   4.  CLAT using self assigned subnet . . . . . . . . . . . . . . .   4
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .   4
+   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   4
+   7.  Acknowledgments . . . . . . . . . . . . . . . . . . . . . . .   5
+   8.  Normative References  . . . . . . . . . . . . . . . . . . . .   5
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   5
+
+1.  Introduction
+
+   The current IPv6 address assignment strategy works very well for edge
+   networks, as long as these networks include a single subnet.  But as
+   soon as a network requires more than one subnet, we observe a tension
+   between two possible solutions.
+
+   The standard practice in home networks is to use the prefix
+   delegation mechanism and obtain a network prefix from the network
+   service provider.  An obvious solution for multiple subnets is to use
+   the same prefix delegation mechanism to obtain additional prefixes,
+   and assign them to the additional networks.  While this solution is
+   technically sound, it requires cooperation from the network service
+   provider.  There are fears that the network service provider might
+   charge an additional fee for these additional network prefixes.
+   These fears may or may not be grounded in facts, but in any case the
+   network provider will need to expand more resource to manage several
+   prefixes than to manage a single one.
+
+   Another plausible solution is to allow edge devices to derive from
+   the prefix allocated by the network service provider a set of longer
+   prefixes, which could then be assigned to different subnets.  That
+   solution may very well work, but it would requires all hosts to
+   support address configuration with variable length subnet prefixes.
+   A number of currently fielded devices do not have that capability.
+   Their IPv6 stack assumes that the subnet prefix is 64 bit long.  A
+   large fraction of these hosts will not be updated in the near future.
+
+
+
+Hinden & Huitema        Expires February 17, 2018               [Page 2]
+
+Internet-Draft              IPv6 Edge Subnets                August 2017
+
+
+   If we ignore this issue and assume that all host will be updated to
+   handle variable length subnets, there is a fear that some network
+   providers will handle by default very long subnet prefixes, forcing
+   complex edge networks to pay extra for shorter prefixes that could be
+   subnetted.
+
+   Yet another solution would be to use a form of local addressing
+   combined with IPv6 to IPv6 NAT.  Each subnet in the home would get a
+   /64 prefix using Unique Local Address (ULA), and some stateful NAT
+   would do the translation to the IPS assigned prefix.  This solution
+   is despised by many IPv6 experts, because it would import to IPv6 the
+   various problems caused by NAT in IPv4.  However, in the absence of
+   alternative, this solution relieves the price pressure linked to the
+   acquisition of long prefixes or multiple prefixes.
+
+   In this document, we propose an alternative to multiple prefixes or
+   generalized support of variable length subnets.  We assume that the
+   current practice of assigning a /64 prefix to a "customer" network
+   will continue, and we assume that most hosts will continue directly
+   connecting to this /64 subnet.  Special purpose networks, on the
+   other hand, will "self assign" a subnet of that /64 prefix.  We do
+   not expect that these networks will use SLAAC.
+
+1.1.  Terminology
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+2.  Problem Statement and Requirements
+
+   Today, most home networks use a simple architecture consistent with
+   the IEEE 802 series of standards.  Multiple segments may use
+   different transport mechanisms such as 802.3 or 802.11, but these
+   segments can be bridged according to 802.1.  In this architecture,
+   the entire edge network appears to IPv6 hosts as a single subnet.
+   Most IPv6 devices just work.
+
+   There are scaling issues with this bridged network architecture,
+   mostly caused by the N-square effects of multicast based
+   transmission.  However, we expect that these scaling issues will be
+   solved by adequate support of IPv6 in the bridges.  There are known
+   examples of such networks scaling up to several ten thousands hosts,
+   which is somewhat larger than the expected size of most home
+   networks.
+
+   There are however other issues than scaling that may require
+   subnetting.  One potential issue is the need to isolate a fraction of
+
+
+
+Hinden & Huitema        Expires February 17, 2018               [Page 3]
+
+Internet-Draft              IPv6 Edge Subnets                August 2017
+
+
+   the network for security reasons.  Another plausible issue is the
+   deployment of special purpose subnets, such as CLAT.
+
+2.1.  Segment isolation
+
+   TODO.
+
+2.2.  CLAT
+
+   TODO.
+
+3.  Self assigned subnet
+
+   TODO: general idea, a box assigns itself a subnet.
+
+   TODO: maybe a beautiful diagram with a /64 and two /96
+
+3.1.  Defending a subnet claim with DAD
+
+   TO DO: how to use DAD to claim a /80 or a /96.
+
+   TO DO: probabilies of SLAAC collision with a self assigned subnet.
+   Show that this is typically not very large.
+
+3.2.  Routing considerations
+
+   TODO: general solution using ND proxy.
+
+   TODO: what about multicast.
+
+   TODO: special case of same box colocation.  The home router also
+   manages the special purpose network.  Example are dedicated Wi-Fi
+   network with special password, or CLAT managed by edge router.
+
+4.  CLAT using self assigned subnet
+
+   TODO, if we really care.  Or maybe this is a different draft.
+
+5.  Security Considerations
+
+   Yeah, right.
+
+6.  IANA Considerations
+
+   This draft does not require any IANA action.
+
+
+
+
+
+
+Hinden & Huitema        Expires February 17, 2018               [Page 4]
+
+Internet-Draft              IPv6 Edge Subnets                August 2017
+
+
+7.  Acknowledgments
+
+   We would like to thank the 6MAN working member for the long and
+   constructive discussion that motivated this draft.
+
+8.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997, <https://www.rfc-
+              editor.org/info/rfc2119>.
+
+Authors' Addresses
+
+   Robert M. Hinden
+   Check Point Software
+   959 Skyway Road
+   San Carlos, CA  94070
+   USA
+
+   Email: bob.hinden@gmail.com
+
+
+   Christian Huitema
+   Private Octopus Inc.
+   Friday Harbor, WA  98250
+   U.S.A.
+
+   Email: huitema@huitema.net
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hinden & Huitema        Expires February 17, 2018               [Page 5]
