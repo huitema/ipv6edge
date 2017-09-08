@@ -17,8 +17,8 @@
      ipr="trust200902">
 
 <front>
-    <title abbrev="IPv6 Edge Subnets">
-      Self Assigned IPv6 Edge Subnets
+    <title abbrev="Simple CLAT in Edge">
+      Simple CLAT Deployment in IPv6 Edge Subnets
     </title>
 
    <author fullname="Robert M. Hinden" initials="R." surname="Hinden">
@@ -52,68 +52,36 @@
 
     <abstract>
         <t>
-This document present a simple strategy for setting up special purpose subnets
-in edge networks without requiring
-additional prefix assignments from the network service provider, and also without
-breaking the current practice of assigning a single /64 prefix to an edge 
-network.
+The 464XLAT strategy for ensuring IPv4 connectivity through IPv6 only provider
+networks relies on deployment of CLAT functions in edge networks. These
+functions requires assignment of a specific IPv6 prefix. We propose
+a simple way to deploy the CLAT function in edge networks while only
+requiring a single /64 prefix for the IPv6 edge network. The CLAT prefix
+will be self-assigned from this prefix, without requiring explicit
+provisioning by the network provider.
         </t>
-<t>
-TODO: explain what we actually propose.
-</t>
     </abstract>
 </front>
 
 <middle>
 <section title="Introduction" anchor="intro" >
 <t>
-The current IPv6 address assignment strategy works very well for edge networks, 
-as long as these networks include a single subnet. But as soon as a network
-requires more than one subnet, we observe a tension between two possible solutions.
+The 464XLAT strategy is defined in <xref target="RFC6877"/>. It ensures
+ensuring IPv4 connectivity through IPv6 only provider
+networks by deployment of IPv4 to IPv6 CLAT functions in edge networks,
+and IPv6 to IPv4 PLAT functions in provider networks. Each CLAT deployment
+requires assignment of a specific IPv6 prefix. 
 </t>
 <t>
-The standard practice in home networks is to use the prefix delegation mechanism
-and obtain a network prefix from the network service provider.
-An obvious solution for multiple subnets is to use the same prefix delegation
-mechanism to obtain additional prefixes, and assign them to the additional
-networks. While this solution is technically sound, it requires cooperation
-from the network service provider. There are fears that the network service
-provider might charge an additional fee for these additional network prefixes.
-These fears may or may not be grounded in facts, but in any case the
-network provider will need to expand more resource to manage several 
-prefixes than to manage a single one.
+The standard practice in edge networks is to use the prefix delegation mechanism
+and obtain a single /64 network prefix from the network service provider. The
+CLAT deployment would in theory require an additional prefix for each network.
+This increases the number of prefixes required for network operation, and 
+generally introduces friction in the deployment of CLAT functions.
 </t>
 <t>
-Another plausible solution is to allow edge devices to derive from the prefix
-allocated by the network service provider a set of longer prefixes, which could
-then be assigned to different subnets. That solution may very well work, but
-it would requires all hosts to support address configuration with
-variable length subnet prefixes. A number of currently fielded devices do
-not have that capability. Their IPv6 stack assumes that the subnet prefix
-is 64 bit long. A large fraction of these hosts will not be updated in the
-near future. If we ignore this issue and assume that all host will be updated
-to handle variable length subnets, there is a fear that some network
-providers will handle by default very long subnet prefixes, forcing
-complex edge networks to pay extra for shorter prefixes that could be subnetted.
-</t>
-<t>
-Yet another solution would be to use a form of local addressing combined
-with IPv6 to IPv6 NAT. Each subnet in the home would get a /64 prefix
-using Unique Local Address (ULA), and some stateful NAT would do the translation
-to the IPS assigned prefix. This solution is despised by many IPv6
-experts, because it would import to IPv6 the various problems caused
-by NAT in IPv4. However, in the absence of alternative, this solution
-relieves the price pressure linked to the acquisition of long prefixes
-or multiple prefixes.
-</t>
-<t>
-In this document, we propose an alternative to multiple prefixes or 
-generalized support of variable length subnets. We assume that the current
-practice of assigning a /64 prefix to a "customer" network will continue,
-and we assume that most hosts will continue directly connecting 
-to this /64 subnet. Special purpose networks, on the other hand, will
-"self assign" a subnet of that /64 prefix. We do not expect that these
-networks will use SLAAC.
+In this document, we propose an alternative in which the CLAT functions
+self assign a /96 prefix inside the /64 prefix assigned to the home network.
 </t>
  
 
@@ -129,48 +97,79 @@ networks will use SLAAC.
 </section> <!-- end of introduction -->
 
 
-<section title="Problem Statement and Requirements" anchor="problem" >
+<section title="464XLAT and CLAT deployment" anchor="problem" >
 <t>
-Today, most home networks use a simple architecture consistent with
-the IEEE 802 series of standards. Multiple segments may use different
-transport mechanisms such as 802.3 or 802.11, but these segments
-can be bridged according to 802.1. In this architecture, the entire
-edge network appears to IPv6 hosts as a single subnet. Most IPv6 
-devices just work.
+The 464XLAT transition mechanism define in <xref target="RFC6877"/>
+relies on two successive translations:
+<list style="numbers">
+<t>
+The packet originates in an edge network as IPv4, and is routed to the default
+IPv4 router for the network, which implements a CLAT function.
 </t>
 <t>
-There are scaling issues with this bridged network architecture,
-mostly caused by the N-square effects of multicast based transmission.
-However, we expect that these scaling issues will be solved by 
-adequate support of IPv6 in the bridges. There are known examples
-of such networks scaling up to several ten thousands hosts, which
-is somewhat larger than the expected size of most home networks.
+The CLAT translates the packet from IPv4 to IPv6 according to <xref target="RFC6145"/>
+The source IPv4 address
+is obtained by combining the original IPv4 source address with the local
+CLAT prefix. The destination IPv6 address is obtained by combining
+the original IPv4 source address with the PLAT prefix.
 </t>
 <t>
-There are however other issues than scaling that may require
-subnetting. One potential issue is the need to isolate a fraction
-of the network for security reasons. Another plausible issue
-is the deployment of special purpose subnets, such as CLAT.
+The packet is routed over IPv6 to the PLAT.
 </t>
-<section title="Segment isolation">
 <t>
-TODO.
+The PLAT translates the packet from IPv6 to IPv4 according to <xref target="RFC6146"/>.
+</t>
+<t>
+The packet is routed to the IPv4 destination.
+</t>
+</list>
+The reverse translations are performed in the opposite direction.
+</t>
+<t>
+The construction of the prefixes for IPv6/IPv4 address translators is specified in
+<xref target="RFC6052"/>, which allows multiple prefix sizes. In what follows,
+we will assume that the CLAT prefix is a /96.
+</t>
+<t>
+The simple deployment makes a set of assumptions:
+<list style="symbols">
+<t>
+The edge network advertises a /64 prefix for
+IPv6 Stateless Address Autoconfiguration according to 
+<xref target="RFC4862"/>.
+</t>
+<t>
+The CLAT function is configured with the 
+prefix of the preferred PLAT.
+</t>
+</list>
 </t>
 </section>
-<section title="CLAT">
-<t>
-TODO.
-</t>
-</section>
-</section> <!-- end of problem statement -->
 
 <section title="Self assigned subnet" >
 <t>
-TODO: general idea, a box assigns itself a subnet.
+The first step is configuration of the CLAT is the configuration of an IPv6 /96 CLAT
+prefix. The prefix MUST BE configured by concatenating:
+<list style="symbols">
+<t>
+The /64 prefix of the local network.
 </t>
 <t>
-TODO: maybe a beautiful diagram with a /64 and two /96
+A random 16 bit CLAT subnet number.
 </t>
+<t>
+A 16 bit number chosen so that the /96 prefix is "checksum neutral" according
+to <xref target="RFC6145"/>.
+</t>
+</list>
+The prefix is only valid as long as the /64 prefix of the local network is valid.
+Similarly to what is explained in <xref target="RFC4862"/>, the /96 bit
+prefix MUST NOT be used if the /64 bit prefix is no longer valid.
+</t>
+
+
+</section> <!-- end of Self assigned subnet -->
+
 <section title="Defending a subnet claim with DAD">
 <t>
 TO DO: how to use DAD to claim a /80 or a /96.
@@ -194,15 +193,6 @@ Example are dedicated Wi-Fi network with special password, or CLAT managed by ed
 </t>
 
 </section> <!-- end of routing -->
-
-</section> <!-- end of Self assigned subnet -->
-
-<section title="CLAT using self assigned subnet">
-<t>
-TODO, if we really care. Or maybe this is a different draft.
-</t>
-</section> <!-- end of clat using -->
-
 
 <section title="Security Considerations" anchor="securityCons" >
 <t>
@@ -230,6 +220,16 @@ We would like to thank the 6MAN working member for the long and constructive dis
 <references title="Normative References">
 
 	<?rfc include="reference.RFC.2119" ?>
+
+	<?rfc include="reference.RFC.6877" ?>
+
+	<?rfc include="reference.RFC.6145" ?>
+
+	<?rfc include="reference.RFC.6146" ?>
+
+	<?rfc include="reference.RFC.6052" ?>
+
+	<?rfc include="reference.RFC.4862" ?>
 
 </references>
 </back>
