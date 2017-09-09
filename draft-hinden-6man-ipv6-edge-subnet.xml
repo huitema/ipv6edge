@@ -13,8 +13,9 @@
 <?rfc inline='yes' ?>
 
 <rfc category="std"
-     docName="draft-hinden-6man-ipv6-edge-subnet-01.txt"
+     docName="draft-hinden-6man-ipv6-edge-subnet-00.txt"
      ipr="trust200902">
+     <!-- saw your edit, Bob, but we really need 00, not 01 -->
 
 <front>
     <title abbrev="Simple CLAT in Edge">
@@ -140,7 +141,13 @@ IPv6 Stateless Address Autoconfiguration according to
 </t>
 <t>
 The CLAT function is configured with the 
-prefix of the preferred PLAT.
+prefix of the preferred PLAT. In the absence of explicit configuration,
+the PLAT prefix may be configured using the process defined in <xref target="RFC7050"/>.
+</t>
+<t>
+The CLAT function includes an IPv4 DHCP server, which is in charge of
+assigning addresses in a selected IPv4 prefix. That prefix MUST be one of
+the prefixes reserved in <xref target="RFC1918" />.
 </t>
 </list>
 </t>
@@ -170,17 +177,69 @@ prefix MUST NOT be used if the /64 bit prefix is no longer valid.
 
 </section> <!-- end of Self assigned subnet -->
 
-<section title="Defending a subnet claim with DAD">
+<section title="Defending the IPv4 addresses with DAD" anchor="dodad" >
 <t>
-TO DO: how to use DAD to claim a /80 or a /96.
+The nodes in the local subnets are not explicitly aware that a specific /96 prefix
+has been self-assigned by the local CLAT function. There is a small probability 
+that nodes using SLAAC configure addresses in the selected prefix. 
+If nodes configure addresses according to <xref target="RFC3972"/>,
+<xref target="RFC4941"/> or <xref target="RFC7217"/>, they will pick 
+Interface Identifiers that are randomly distributed 64 bit numbers. The
+most significant 32 bits of these numbers may end up colliding with the
+lest significant 32 bits of the self configured CLAT prefix. If nothing was done,
+the procedures described in <xref target="routing"/> will results in 
+packets sometimes routed to the CLAT and sometimes to the node, and that
+would be bad.
 </t>
 <t>
-TO DO: probabilies of SLAAC collision with a self assigned subnet. 
-Show that this is typically not very large.
+We may remark that such collisions will occur rarely. The probability of
+assigning an Interface Identifier with the "wrong" high level 32 bits is
+less 1/2^32, or maybe 1/2^30 if randomly chosen identifiers are constrained
+to use the U and G bit values reserved in the EUI64 specification and
+refered to in <xref target="RFC3972"/> and <xref target="RFC4941"/>. However,
+there are billions of hosts in the Internet, so collisions are likely to
+occur at least a few times.
+</t>
+<t>
+The basic defense against such collisions is to perform
+Duplicate Address Detection (DAD).
+If we assume that the CLAT includes an IPv4 DHCP function, DAD
+MUST be performed prior to allocating an IPv4 address to a DHCP client,
+as indicated in the following sequence:
+<list style="numbers">
+<t>
+DHCP component of CLAT receives a request to allocate a new IPv4 address.
+</t>
+<t>
+DHCP component of CLAT selects a tentative IPv4 address.
+</t>
+<t>
+DHCP component of CLAT composes the corresponding IPv6 address.
+</t>
+<t>
+CLAT MUST perform DAD for this IPv6 address,
+as specified in <xref target="RFC4862" />.
+</t>
+<t>
+If DAD fails, the CLAT must pick another tentative IPv4 address, and
+repeat the procedure from step 2.
+</t>
+<t>
+If DAD succeeds, the IPv4 address is validated and SHOULD be assigned
+via DHCP to the soliciting host.
+</t>
+</list>
+This procedure will ensure that the IPv4 addresses assigned to local
+IPv4 hosts do not map to IPv6 addresses already configured by local IPv6
+hosts. To avoid collisions with IPv6 addresses configured after the
+IPv4 address assignment, the CLAT MUST defend the assigned address
+using DAD.
 </t>
 </section> <!-- end of DAD -->
 
-<section title="Routing considerations" >
+
+
+<section title="Routing considerations" anchor="routing">
 <t>
 TODO: general solution using ND proxy.
 </t>
@@ -220,16 +279,22 @@ We would like to thank the 6MAN working member for the long and constructive dis
 <references title="Normative References">
 
 	<?rfc include="reference.RFC.2119" ?>
-
 	<?rfc include="reference.RFC.6877" ?>
-
 	<?rfc include="reference.RFC.6145" ?>
-
 	<?rfc include="reference.RFC.6146" ?>
-
 	<?rfc include="reference.RFC.6052" ?>
-
 	<?rfc include="reference.RFC.4862" ?>
+	<?rfc include="reference.RFC.7050" ?>
+	<?rfc include="reference.RFC.1918" ?>
+	
+
+</references>
+
+<references title="Informative References">
+
+	<?rfc include="reference.RFC.3972" ?>
+	<?rfc include="reference.RFC.4941" ?>
+	<?rfc include="reference.RFC.7217" ?>
 
 </references>
 </back>
